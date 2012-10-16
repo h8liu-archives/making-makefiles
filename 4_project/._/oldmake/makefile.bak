@@ -1,0 +1,51 @@
+.PHONY: all clean
+
+TARGET:=run
+
+all: $(TARGET)
+
+CC := g++
+SRC := src
+OBJ := obj
+CFLAGS := -std=c++0x -Wall -O3 -I$(SRC)
+
+list_headers = $(wildcard $(SRC)/$(1)/*.h)
+list_sources = $(wildcard $(SRC)/$(1)/*.cpp)
+obj_file = $(patsubst $(SRC)/%.cpp,$(OBJ)/%.o,$(1))
+list_objects = $(foreach file,$(call list_sources,$(1)),$(call obj_file,$(file)))
+
+# file_rules(c_file, headers)
+define file_rules
+$$(call obj_file, $(1)) : $(1) $(2)
+	@ mkdir -p $$(@D)
+	$(CC) $(CFLAGS) $$< -c -o $$@
+endef
+
+# pack_rules(name, deps)
+define pack_rules
+HEADERS:=$$(call list_headers,$(1))
+HEADERS+=$$(foreach dep,$(2),$$(call list_headers,$$(dep)))
+SOURCES:=$$(call list_sources,$(1))
+$$(foreach file,$$(SOURCES),$$(eval $$(call file_rules,$$(file),$$(HEADERS))))
+endef
+
+# make_pack(name, deps)
+make_pack = $(call list_objects,$(1))$(eval $(call pack_rules,$(1),$(2)))
+
+# bin_rules(name, objs)
+bin_rules = $(1) : $(strip $(2)); $(CC) $(CFLAGS) $$^ -o $$@
+	
+# make_bin(name, objs)
+make_bin = $(eval $(call bin_rules,$(1),$(strip $(2))))
+
+OBJS := $(call make_pack,h8)
+OBJS += $(call make_pack,navy,h8)
+OBJS += $(call make_pack,simu,navy h8)
+OBJS += $(call make_pack,main,simu navy h8)
+$(call make_bin,$(TARGET),$(OBJS))
+
+test:
+	echo $(CC)
+
+clean:
+	-rm -r $(OBJ) $(TARGET)
